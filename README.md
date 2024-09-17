@@ -17,7 +17,7 @@ Check out the bot here: [TonTon Bot](https://t.me/tonton_intract_bot?startapp=ey
 
     ```sh
     git clone https://github.com/yanpaing007/TonTonBot.git
-    cd tonton-bot
+    cd TonTonBot
     ```
 
 2. **Create a virtual environment:**
