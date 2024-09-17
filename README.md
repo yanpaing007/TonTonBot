@@ -45,20 +45,20 @@ TonTon Bot is a script designed to automate certain tasks using multiple tokens 
 
 5. **Prepare configuration files:**
 
-    - **[config.json]()**: Configuration file for the bot.
-    - **[token.txt]()**: File containing tokens, one per line.
-    - **[proxy.txt]()**: (Optional) File containing proxies, one per line.
+    - **[config.json](https://github.com/yanpaing007/TonTonBot/blob/main/config.json)**: Configuration file for the bot.
+    - **[token.txt](https://github.com/yanpaing007/TonTonBot/blob/main/token.txt)**: File containing tokens, one per line.
+    - **[proxy.txt](https://github.com/yanpaing007/TonTonBot/blob/main/proxy.txt)**: (Optional) File containing proxies, one per line.
 ## Obtaining Tokens
 
-To obtain the tokens required for [token.txt](), follow these steps:
+To obtain the tokens required for [token.txt](https://github.com/yanpaing007/TonTonBot/blob/main/token.txt), follow these steps:
 
 1. **Open your browser and navigate to the game.**
 2. **Open Developer Tools:**
     - **Chrome:** Press `Ctrl+Shift+I` (Windows/Linux) or `Cmd+Option+I` (Mac).
     - **Firefox:** Press `Ctrl+Shift+I` (Windows/Linux) or `Cmd+Option+I` (Mac).
 3. **Go to the Network tab.**
-4. **Start the game and look for a network request named [`get-super-user`]( "Go to definition").**
-5. **Click on the [`get-super-user`]("Go to definition") request and go to the Headers tab.**
+4. **Start the game and look for a network request named [`get-super-user`].**
+5. **Click on the [`get-super-user`] request and go to the Headers tab.**
 6. **Find the `Authorization` header and copy the Bearer token.**
 7. **Paste the token into [token.txt](), one token per line.**
 
