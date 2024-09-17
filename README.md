@@ -18,6 +18,8 @@ Check out the bot here: [TonTon Bot](https://t.me/tonton_intract_bot?startapp=ey
     ```sh
     git clone https://github.com/yanpaing007/TonTonBot.git
     cd TonTonBot
+    cp token-example.txt token.txt
+    cp proxy-example.txt proxy.txt
     ```
 
 2. **Create a virtual environment:**
