@@ -1,0 +1,2 @@
+type://ip:port
+type://username:password@ip:port
