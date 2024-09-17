@@ -2,6 +2,9 @@
 
 TonTon Bot is a script designed to tap nonstop for farming coins using multiple tokens and optional proxies. It supports multiple accounts and can run simultaneously.
 
+Check out the bot here: [TonTon Bot](https://t.me/tonton_intract_bot?startapp=eyJyZWZlcnJhbENvZGUiOiJ2UHNCWGgiLCJyZWZlcnJhbFNvdXJjZSI6IlRFTEVHUkFNX01JTklfQVBQIiwicmVmZXJyYWxMaW5rIjoiaHR0cHM6Ly93d3cuaW50cmFjdC5pby90bWEvcmV3YXJkcz90YWI9cmVmZXJyYWxzIn0=&text=Check%20out%20this%20awesome%20mini%20app!)
+- Top 10 users can get up to $100 daily!!
+
 ## Prerequisites
 
 - Python 3.7 or higher
