@@ -110,19 +110,20 @@ class TonTonBot:
         payload = {"userTaps": self.tap_amount}
         try:
             async with session.post(self.url, json=payload, headers=self.headers, proxy=self.proxy) as response:
-                if response.status != 200:
+                if response.status == 200:
+                    logging.info(f"Tap successful.")
+                else:
                     logging.error(f"Tap failed, status code: {response.status}")
-                    
         except aiohttp.ClientError as e:
             logging.error(f"Request failed during tap: {e}")
-
+    
     async def start_tapping(self, index: int):
-        async with aiohttp.ClientSession() as session:  
+        async with aiohttp.ClientSession() as session:
             logging.debug(f"[Account {index}] Starting session.")
             if self.proxy:
                 logging.warning(f"[Account {index}] Proxy: {self.proxy}")
                 await self.check_proxy()
-                
+    
             await self.tap(session)  # Initial tap
             logging.warning(f"[Account {index}] Tapping {self.tap_amount} times every {self.tap_delay:.2f} seconds.")
             logging.warning(f"[Account {index}] starting in {self.random_delay:.2f} seconds.")
@@ -139,6 +140,8 @@ class TonTonBot:
                         await asyncio.sleep(self.tap_delay)
                 else:
                     logging.error(f"[Account {index}] Failed to retrieve energy or balance.")
+                    logging.warning(f"[Account {index}] Sleeping for 5 minutes before retrying.")
+                    await asyncio.sleep(300)  # Sleep for 5 minutes before retrying
 
 def print_banner():
     print(f"{Fore.CYAN}{Style.BRIGHT}")
