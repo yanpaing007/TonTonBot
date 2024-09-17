@@ -1,0 +1,4 @@
+type://ip1:port1
+type://ip2:port2
+type://ip3:port3
+
