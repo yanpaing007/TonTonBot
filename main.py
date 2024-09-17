@@ -118,15 +118,16 @@ class TonTonBot:
     
     async def start_tapping(self, index: int):
         async with aiohttp.ClientSession() as session:
+            logging.info(f"Bot is starting...")
             if self.proxy:
                 logging.warning(f"[Account {index}] Proxy: {self.proxy}")
                 await self.check_proxy()
-    
-            await self.tap(session)  # Initial tap
+
             logging.warning(f"[Account {index}] Tapping {self.tap_amount} times every {self.tap_delay:.2f} seconds.")
             logging.warning(f"[Account {index}] starting in {self.random_delay:.2f} seconds.")
             await asyncio.sleep(self.random_delay)
             while True:
+                await self.tap(session)  # Initial tap
                 current_energy, balance = await self.get_energy(session)
                 if current_energy is not None and balance is not None:
                     logging.info(f"[Account {index}] Current energy: {current_energy}, Balance: {balance}")
