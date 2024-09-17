@@ -16,7 +16,7 @@ Check out the bot here: [TonTon Bot](https://t.me/tonton_intract_bot?startapp=ey
 1. **Clone the repository:**
 
     ```sh
-    git clone https://github.com/yourusername/tonton-bot.git
+    git clone https://github.com/yanpaing007/TonTonBot.git
     cd tonton-bot
     ```
 
