@@ -82,7 +82,7 @@ class TonTonBot:
             async with aiohttp.ClientSession() as session:
                 async with session.get(test_url, proxy=self.proxy) as response:
                     if response.status == 200:
-                        logging.warning(f"Proxy {self.proxy} is working.")
+                        logging.info(f"Proxy {self.proxy} is working.")
                     else:
                         logging.error(f"Proxy {self.proxy} failed with status code: {response.status}")
                         self.proxy = None
@@ -118,7 +118,6 @@ class TonTonBot:
     
     async def start_tapping(self, index: int):
         async with aiohttp.ClientSession() as session:
-            logging.info(f"Bot is starting...")
             if self.proxy:
                 logging.warning(f"[Account {index}] Proxy: {self.proxy}")
                 await self.check_proxy()
@@ -131,9 +130,9 @@ class TonTonBot:
                 current_energy, balance = await self.get_energy(session)
                 if current_energy is not None and balance is not None:
                     logging.info(f"[Account {index}] Current energy: {current_energy}, Balance: {balance}")
-                    if current_energy < self.tap_amount:
-                        logging.warning(f"[Account {index}] Energy too low. Sleeping for 15 minutes.")
-                        await asyncio.sleep(850)  # Sleep for 15 minutes
+                    if current_energy < 30:
+                        logging.warning(f"[Account {index}] Energy too low. Sleeping for 10 minutes.")
+                        await asyncio.sleep(600)  # Sleep for 10 minutes
                     else:
                         await self.tap(session)
                         await asyncio.sleep(self.tap_delay)
