@@ -49,7 +49,7 @@ class TonTonBot:
         self.config = self.load_config(config_file)
         self.token = token
         self.proxy = proxy if self.config.get('use_proxy', False) else None
-        self.tap_delay = random.uniform(0.1, 0.2)
+        self.tap_delay = random.uniform(0.3, 0.4)
         self.random_delay = random.uniform(3, 5)
         self.tap_amount = self.config.get('tap', 3)
         self.validate_config()
@@ -125,8 +125,11 @@ class TonTonBot:
             logging.warning(f"[Account {index}] Tapping {self.tap_amount} times every {self.tap_delay:.2f} seconds.")
             logging.warning(f"[Account {index}] starting in {self.random_delay:.2f} seconds.")
             await asyncio.sleep(self.random_delay)
+            
+            await self.tap(session)# Initial tap
+            await asyncio.sleep(self.tap_delay)
             while True:
-                await self.tap(session)  # Initial tap
+                await self.tap(session)
                 current_energy, balance = await self.get_energy(session)
                 if current_energy is not None and balance is not None:
                     logging.info(f"[Account {index}] Current energy: {current_energy}, Balance: {balance}")

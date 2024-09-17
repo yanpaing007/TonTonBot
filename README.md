@@ -94,5 +94,5 @@ Example configuration:
 ```json
 {
     "tap": 3,
-    "use_proxy": true
+    "use_proxy": true # If you want to use proxy set it true otherwise false
 }
