@@ -1,4 +1,4 @@
 {
     "tap": 2,
-    "use_proxy": false
+    "use_proxy": true
 }
