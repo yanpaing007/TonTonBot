@@ -1,6 +1,6 @@
 # TonTon Bot
 
-TonTon Bot is a script designed to automate certain tasks using multiple tokens and optional proxies. This README provides instructions on how to set up and run the script on both Windows and Mac/Linux systems.
+TonTon Bot is a script designed to tap nonstop for farming coins using multiple tokens and optional proxies. It supports multiple accounts and can run simultaneously.
 
 ## Prerequisites
 
