@@ -49,12 +49,18 @@ class TonTonBot:
         self.config = self.load_config(config_file)
         self.token = token
         self.proxy = proxy if self.config.get('use_proxy', False) else None
-        self.tap_delay = random.uniform(0.3, 0.4)
-        self.random_delay = random.uniform(3, 5)
+        self.tap_delay = random.uniform(0.2, 0.3)
         self.tap_amount = self.config.get('tap', 3)
+        self.random_delay = random.uniform(0, 5)
         self.validate_config()
         self.url = self.API_URL
         self.headers = self.build_headers()
+        if self.proxy:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                loop.create_task(self.check_proxy())
+            else:
+                loop.run_until_complete(self.check_proxy())
 
     def load_config(self, file_path: str) -> dict:
         try:
@@ -74,8 +80,7 @@ class TonTonBot:
         headers = self.HEADERS_TEMPLATE.copy()
         headers["authorization"] = f"Bearer {self.token}"
         return headers
-    
-    
+
     async def check_proxy(self):
         test_url = "http://httpbin.org/ip"
         try:
@@ -89,44 +94,46 @@ class TonTonBot:
         except aiohttp.ClientError as e:
             logging.error(f"Proxy {self.proxy} failed with error: {e}")
             self.proxy = None
-    
 
     async def get_energy(self, session: aiohttp.ClientSession) -> Tuple[Optional[int], Optional[int]]:
-        try:
-            async with session.get(self.ENERGY_URL, headers=self.headers, proxy=self.proxy) as response:
-                if response.status == 200:
-                    result = await response.json()
-                    current_energy = result.get('tapDetails', {}).get('energyLeft', None)
-                    balance = result.get('totalTxps', None)
-                    return current_energy, balance
+        retries = 3
+        for attempt in range(retries):
+            try:
+                async with session.get(self.ENERGY_URL, headers=self.headers, proxy=self.proxy, timeout=10) as response:
+                    if response.status == 200:
+                        result = await response.json()
+                        current_energy = result.get('tapDetails', {}).get('energyLeft', None)
+                        balance = result.get('totalTxps', None)
+                        return current_energy, balance
+                    else:
+                        logging.error(f"Failed to fetch energy, status code: {response.status}")
+                        return None, None
+            except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+                logging.error(f"Request failed during fetching energy: {e}")
+                if attempt < retries - 1:
+                    logging.warning(f"Retrying... ({attempt + 1}/{retries})")
+                    await asyncio.sleep(5)  # Wait before retrying
                 else:
-                    logging.error(f"Failed to fetch energy, status code: {response.status}")
                     return None, None
-        except aiohttp.ClientError as e:
-            logging.error(f"Request failed during fetching energy: {e}")
-            return None, None
 
     async def tap(self, session: aiohttp.ClientSession):
         payload = {"userTaps": self.tap_amount}
         try:
             async with session.post(self.url, json=payload, headers=self.headers, proxy=self.proxy) as response:
-                if response.status is not 200:
+                if response.status != 200:
                     logging.error(f"Tap failed, status code: {response.status}")
                     
         except aiohttp.ClientError as e:
             logging.error(f"Request failed during tap: {e}")
-    
+
     async def start_tapping(self, index: int):
         async with aiohttp.ClientSession() as session:
-            if self.proxy:
-                logging.warning(f"[Account {index}] Proxy: {self.proxy}")
-                await self.check_proxy()
-
+            logging.warning(f"[Account {index}] Proxy: {self.proxy}")
             logging.warning(f"[Account {index}] Tapping {self.tap_amount} times every {self.tap_delay:.2f} seconds.")
             logging.warning(f"[Account {index}] starting in {self.random_delay:.2f} seconds.")
             await asyncio.sleep(self.random_delay)
             
-            await self.tap(session)# Initial tap
+            await self.tap(session)  # Initial tap
             await asyncio.sleep(self.tap_delay)
             while True:
                 await self.tap(session)
@@ -142,7 +149,7 @@ class TonTonBot:
                 else:
                     logging.error(f"[Account {index}] Failed to retrieve energy or balance.")
                     logging.warning(f"[Account {index}] Sleeping for 5 minutes before retrying.")
-                    await asyncio.sleep(60)  # Sleep for 1 minutes before retrying
+                    await asyncio.sleep(60)  # Sleep for 1 minute before retrying
 
 def print_banner():
     print(f"{Fore.CYAN}{Style.BRIGHT}")
@@ -154,8 +161,7 @@ def print_banner():
     print(f"{Fore.MAGENTA}{Style.BRIGHT}")
     print("#  Press Ctrl+C to stop the bot safely...   #")
     print("#############################################\n")
-    
-    
+
 async def main():
     print_banner()
     config_file = 'config.json'
@@ -183,7 +189,8 @@ async def main():
         return
 
     tasks = []
-    for index, (token, proxy) in enumerate(zip(tokens, proxies), start=1):
+    for index, token in enumerate(tokens, start=1):
+        proxy = proxies[index - 1] if index <= len(proxies) else None
         bot = TonTonBot(config_file, token, proxy)
         tasks.append(bot.start_tapping(index))
 
