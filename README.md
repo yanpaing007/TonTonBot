@@ -9,7 +9,7 @@ Check out the bot here: [TonTon Bot](https://t.me/tonton_intract_bot?startapp=ey
 
 - Python 3.7 or higher
 - `pip` (Python package installer)
-
+- `git` [Git Download](https://git-scm.com/downloads) (if you want to easily update your code )(Without git every time your want to get latest version of code you have to manually download the zip file)
 ## Setup
 
 1. **Clone the repository:**
