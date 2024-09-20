@@ -141,14 +141,14 @@ class TonTonBot:
                 if current_energy is not None and balance is not None:
                     logging.info(f"[Account {index}] Current energy: {current_energy}, Balance: {balance}")
                     if current_energy < 30:
-                        logging.warning(f"[Account {index}] Energy too low. Sleeping for 10 minutes.")
-                        await asyncio.sleep(600)  # Sleep for 10 minutes
+                        logging.warning(f"[Account {index}] Energy too low. Sleeping for 5 minutes.")
+                        await asyncio.sleep(300)  # Sleep for 5 minutes
                     else:
                         await self.tap(session)
                         await asyncio.sleep(self.tap_delay)
                 else:
                     logging.error(f"[Account {index}] Failed to retrieve energy or balance.")
-                    logging.warning(f"[Account {index}] Sleeping for 5 minutes before retrying.")
+                    logging.warning(f"[Account {index}] Sleeping for 1 minutes before retrying.")
                     await asyncio.sleep(60)  # Sleep for 1 minute before retrying
 
 def print_banner():
