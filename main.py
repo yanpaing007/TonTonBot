@@ -115,7 +115,7 @@ class TonTonBot:
                     await asyncio.sleep(5)
                 else:
                     return None, None
-                
+
     async def fetch_tasks(self, session: aiohttp.ClientSession):
         try:
             async with session.get(self.TASK_ID_URL, headers=self.headers, proxy=self.proxy) as response:
@@ -129,7 +129,7 @@ class TonTonBot:
         except aiohttp.ClientError as e:
             logging.error(f"Request failed during fetching tasks: {e}")
             return None
-            
+
     def extract_ids(self, data):
         return [
             item.get('id') for item in data.get('data', [])
@@ -142,35 +142,48 @@ class TonTonBot:
             async with session.post(self.API_URL, json=payload, headers=self.headers, proxy=self.proxy) as response:
                 if response.status != 200:
                     logging.error(f"Tap failed, status code: {response.status}")
-                    
+
         except aiohttp.ClientError as e:
             logging.error(f"Request failed during tap: {e}")
 
     async def start_tapping(self, index: int):
-        async with aiohttp.ClientSession() as session:
-            logging.warning(f"[Account {index}] Proxy: {self.proxy}")
-            logging.warning(f"[Account {index}] Tapping {self.tap_amount} times every {self.tap_delay:.2f} seconds.")
-            logging.warning(f"[Account {index}] Starting in {self.random_delay:.2f} seconds.")
-            await asyncio.sleep(self.random_delay)
-            
-            await self.tap(session)
-            current_energy, balance = await self.fetch_energy_info(session)  # Initial tap
-            await asyncio.sleep(self.tap_delay)
-            
-            while True:
-                current_energy, balance = await self.fetch_energy_info(session)
-                if current_energy is not None and balance is not None:
-                    logging.info(f"[Account {index}] Current energy: {current_energy}, Balance: {balance}")
-                    if current_energy < self.tap_amount + 30:
-                        logging.warning(f"[Account {index}] Energy too low. Sleeping for {self.SLEEP_DURATION_LOW_ENERGY // 60} minutes.")
-                        await asyncio.sleep(self.SLEEP_DURATION_LOW_ENERGY)
+        while True:
+            async with aiohttp.ClientSession() as session:
+                logging.warning(f"[Account {index}] Proxy: {self.proxy}")
+                logging.warning(
+                    f"[Account {index}] Tapping {self.tap_amount} times every {self.tap_delay:.2f} seconds.")
+                logging.warning(f"[Account {index}] Starting in {self.random_delay:.2f} seconds.")
+                await asyncio.sleep(self.random_delay)
+
+                await self.tap(session)
+                current_energy, balance = await self.fetch_energy_info(session)  # Initial tap
+                await asyncio.sleep(self.tap_delay)
+
+                while True:
+                    current_energy, balance = await self.fetch_energy_info(session)
+                    if current_energy is not None and balance is not None:
+                        logging.info(f"[Account {index}] Current energy: {current_energy}, Balance: {balance}")
+                        if current_energy < self.tap_amount + 30:
+                            random_pause_minutes = random.randint(5, 30) # Change it to increase the pause. A random minute from 5 to 30 is selected
+                            random_pause_seconds = random.randint(0, 59)
+                            random_long_pause = random_pause_minutes * 60 + random_pause_seconds
+
+                            logging.warning(
+                                f"[Account {index}] Energy too low. Taking a break for {random_pause_minutes} minutes and {random_pause_seconds} seconds.")
+
+                            await session.close()
+                            await asyncio.sleep(random_long_pause)
+
+                            logging.info(f"[Account {index}] Resuming after break.")
+                            break
+                        else:
+                            await self.tap(session)
+                            await asyncio.sleep(self.tap_delay)
                     else:
-                        await self.tap(session)
-                        await asyncio.sleep(self.tap_delay)
-                else:
-                    logging.error(f"[Account {index}] Failed to retrieve energy or balance.")
-                    logging.warning(f"[Account {index}] Sleeping for {self.SLEEP_DURATION_RETRY // 60} minutes before retrying.")
-                    await asyncio.sleep(self.SLEEP_DURATION_RETRY)
+                        logging.error(f"[Account {index}] Failed to retrieve energy or balance.")
+                        logging.warning(
+                            f"[Account {index}] Sleeping for {self.SLEEP_DURATION_RETRY // 60} minutes before retrying.")
+                        await asyncio.sleep(self.SLEEP_DURATION_RETRY)
 
 def print_banner():
     print(f"{Fore.CYAN}{Style.BRIGHT}")
