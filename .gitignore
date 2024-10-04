@@ -1,3 +1,4 @@
 venv/
+.idea/
 proxy.txt
 token.txt

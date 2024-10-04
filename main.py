@@ -162,7 +162,7 @@ class TonTonBot:
                 if current_energy is not None and balance is not None:
                     logging.info(f"[Account {index}] Current energy: {current_energy}, Balance: {balance}")
                     if current_energy < self.tap_amount + 30:
-                        random_pause_minutes = random.randint(5, 30)
+                        random_pause_minutes = random.randint(5, 10)
                         random_pause_seconds = random.randint(0, 59)
                         random_long_pause = random_pause_minutes * 60 + random_pause_seconds
 
