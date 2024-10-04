@@ -162,9 +162,12 @@ class TonTonBot:
                 if current_energy is not None and balance is not None:
                     logging.info(f"[Account {index}] Current energy: {current_energy}, Balance: {balance}")
                     if current_energy < self.tap_amount + 30:
-                        random_long_pause = random.uniform(300, 1800)
+                        random_pause_minutes = random.randint(5, 30)
+                        random_pause_seconds = random.randint(0, 59)
+                        random_long_pause = random_pause_minutes * 60 + random_pause_seconds
+
                         logging.warning(
-                            f"[Account {index}] Energy too low. Taking a break for {random_long_pause // 60:.2f} minutes.")
+                            f"[Account {index}] Energy too low. Taking a break for {random_pause_minutes} minutes and {random_pause_seconds} seconds.")
                         await asyncio.sleep(random_long_pause)
                     else:
                         await self.tap(session)
