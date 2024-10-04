@@ -115,7 +115,7 @@ class TonTonBot:
                     await asyncio.sleep(5)
                 else:
                     return None, None
-                
+
     async def fetch_tasks(self, session: aiohttp.ClientSession):
         try:
             async with session.get(self.TASK_ID_URL, headers=self.headers, proxy=self.proxy) as response:
@@ -129,7 +129,7 @@ class TonTonBot:
         except aiohttp.ClientError as e:
             logging.error(f"Request failed during fetching tasks: {e}")
             return None
-            
+
     def extract_ids(self, data):
         return [
             item.get('id') for item in data.get('data', [])
@@ -142,7 +142,7 @@ class TonTonBot:
             async with session.post(self.API_URL, json=payload, headers=self.headers, proxy=self.proxy) as response:
                 if response.status != 200:
                     logging.error(f"Tap failed, status code: {response.status}")
-                    
+
         except aiohttp.ClientError as e:
             logging.error(f"Request failed during tap: {e}")
 
@@ -164,8 +164,8 @@ class TonTonBot:
                     if current_energy is not None and balance is not None:
                         logging.info(f"[Account {index}] Current energy: {current_energy}, Balance: {balance}")
                         if current_energy < self.tap_amount + 30:
-                            random_pause_minutes = random.randint(0, 2)
-                            random_pause_seconds = random.randint(0, 30)
+                            random_pause_minutes = random.randint(5, 30) # Change it to increase the pause. A random minute from 5 to 30 is selected
+                            random_pause_seconds = random.randint(0, 59)
                             random_long_pause = random_pause_minutes * 60 + random_pause_seconds
 
                             logging.warning(
