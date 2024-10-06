@@ -51,7 +51,7 @@ class TonTonBot:
     MAX_RETRIES = 3
     DEFAULT_TAP_DELAY_RANGE = (0.6, 0.8)
     DEFAULT_TAP_AMOUNT = (1, 10)
-    SLEEP_DURATION_LOW_ENERGY = 300  # 5 minutes
+    SLEEP_DURATION_LOW_ENERGY = random.randint(400,600)  # 5 minutes
     SLEEP_DURATION_RETRY = 60         # 1 minute
 
     def __init__(self, config_file: str, token: str, proxy: Optional[str] = None):
@@ -158,6 +158,7 @@ class TonTonBot:
             await asyncio.sleep(self.tap_delay)
             
             while True:
+                await self.tap(session)
                 current_energy, balance = await self.fetch_energy_info(session)
                 if current_energy is not None and balance is not None:
                     logging.info(f"[Account {index}] Current energy: {current_energy}, Balance: {balance}")
