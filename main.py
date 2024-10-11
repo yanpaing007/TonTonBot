@@ -30,9 +30,10 @@ handler.setFormatter(formatter)
 logging.basicConfig(level=logging.INFO, handlers=[handler])
 
 class TonTonBot:
-    API_URL = "https://api.intract.io/api/qv1/tma/tap"
-    ENERGY_URL = "https://api.intract.io/api/qv1/auth/get-super-user"
+    API_URL = "https://gcpapilb.intract.io/api/qv1/tma/tap"
+    ENERGY_URL = "https://gcpapilb.intract.io/api/qv1/auth/get-super-user"
     TASK_ID_URL = "https://gcpapilb.intract.io/api/qv1/search/results"
+    DAILY_LOGIN_URL = "https://gcpapilb.intract.io/api/qv1/auth/gm-streak"
     HEADERS_TEMPLATE = {
         "authority": "gcpapilb.intract.io",
         "accept": "application/json, text/plain, */*",
@@ -49,9 +50,9 @@ class TonTonBot:
     }
 
     MAX_RETRIES = 3
-    DEFAULT_TAP_DELAY_RANGE = (0.6, 0.8)
+    DEFAULT_TAP_DELAY_RANGE = (0.3, 0.5)
     DEFAULT_TAP_AMOUNT = (1, 10)
-    SLEEP_DURATION_LOW_ENERGY = random.randint(400,600)  # 5 minutes
+    SLEEP_DURATION_LOW_ENERGY = random.randint(40,60)  # 5 minutes
     SLEEP_DURATION_RETRY = 60         # 1 minute
 
     def __init__(self, config_file: str, token: str, proxy: Optional[str] = None):
@@ -145,6 +146,24 @@ class TonTonBot:
                     
         except aiohttp.ClientError as e:
             logging.error(f"Request failed during tap: {e}")
+            
+    async def daily_login(self, session: aiohttp.ClientSession):
+        try:
+            async with session.get(self.DAILY_LOGIN_URL, headers=self.headers, proxy=self.proxy) as response:
+                if response.status == 200:
+                    result = await response.json()
+                    logging.info(f"Daily login success: {result}")
+                else:
+                    logging.warning(f"Daily login seems to have completed already!")
+        except aiohttp.ClientError as e:
+            logging.error(f"Request failed during daily login: {e}")
+            
+    async def schedule_daily_login(self, session: aiohttp.ClientSession, index: int):
+        while True:
+            logging.info(f"[Account {index}] Performing daily login.")
+            await self.daily_login(session)
+            logging.info(f"[Account {index}] Daily login completed, waiting 24 hours for the next login.")
+            await asyncio.sleep(86400)  # Wait for 24 hours
 
     async def start_tapping(self, index: int):
         async with aiohttp.ClientSession() as session:
@@ -152,22 +171,24 @@ class TonTonBot:
             logging.warning(f"[Account {index}] Tapping {self.tap_amount} times every {self.tap_delay:.2f} seconds.")
             logging.warning(f"[Account {index}] Starting in {self.random_delay:.2f} seconds.")
             await asyncio.sleep(self.random_delay)
-            
-            await self.tap(session)
-            current_energy, balance = await self.fetch_energy_info(session)  # Initial tap
-            await asyncio.sleep(self.tap_delay)
+            asyncio.create_task(self.schedule_daily_login(session, index))
             
             while True:
-                await self.tap(session)
                 current_energy, balance = await self.fetch_energy_info(session)
                 if current_energy is not None and balance is not None:
                     logging.info(f"[Account {index}] Current energy: {current_energy}, Balance: {balance}")
+                    
                     if current_energy < self.tap_amount + 30:
                         logging.warning(f"[Account {index}] Energy too low. Sleeping for {self.SLEEP_DURATION_LOW_ENERGY // 60} minutes.")
                         await asyncio.sleep(self.SLEEP_DURATION_LOW_ENERGY)
-                    else:
-                        await self.tap(session)
-                        await asyncio.sleep(self.tap_delay)
+                        continue 
+                    
+                    await self.tap(session)
+                    await asyncio.sleep(self.tap_delay)
+                    current_energy, balance = await self.fetch_energy_info(session)
+                    if current_energy is None:
+                         logging.error(f"[Account {index}] Failed to retrieve updated energy or balance.")
+                        
                 else:
                     logging.error(f"[Account {index}] Failed to retrieve energy or balance.")
                     logging.warning(f"[Account {index}] Sleeping for {self.SLEEP_DURATION_RETRY // 60} minutes before retrying.")
@@ -219,5 +240,5 @@ if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        logging.info("Stopping bot due to user interruption...")
+        logging.warning("Stopping bot due to user interruption...")
         sys.exit(0)
