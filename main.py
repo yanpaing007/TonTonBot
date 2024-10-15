@@ -6,10 +6,7 @@ import sys
 import logging
 from colorama import Fore, Style, init
 from typing import Tuple, Optional, List
-
 import urllib
-
-import requests
 
 init(autoreset=True)
 
@@ -47,7 +44,7 @@ class TonTonBot:
         "content-type": "application/json",
         "origin": "https://www.intract.io",
         "referer": "https://www.intract.io/",
-        "user-agent": "Mozilla/5.0 (Linux; Android 12; K) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/127.06533103 Mobile Safari/537.36",
+        "user-agent": "Mozilla/5.0 (Linux; Android 12; K)",
         "sec-ch-ua-mobile": "?1",
         "sec-ch-ua-platform": "Android",
         "sec-fetch-site": "same-site",
@@ -56,9 +53,8 @@ class TonTonBot:
 
     MAX_RETRIES = 3
     DEFAULT_TAP_DELAY_RANGE = (0.3, 0.5)
-    DEFAULT_TAP_AMOUNT = (1, 10)
-    SLEEP_DURATION_LOW_ENERGY = random.randint(40,60)  # 5 minutes
-    SLEEP_DURATION_RETRY = 60         # 1 minute
+    SLEEP_DURATION_LOW_ENERGY = random.randint(200, 300)  
+    SLEEP_DURATION_RETRY = 60  # 1 minute
 
     def __init__(self, config_file: str, token: str, proxy: Optional[str] = None):
         self.config = self.load_config(config_file)
@@ -73,6 +69,7 @@ class TonTonBot:
         self.bearer = None
         if self.proxy:
             asyncio.create_task(self.check_proxy())
+
     def load_config(self, file_path: str) -> dict:
         try:
             with open(file_path, 'r') as file:
@@ -80,6 +77,7 @@ class TonTonBot:
         except (FileNotFoundError, json.JSONDecodeError) as e:
             logging.error(f"Failed to load configuration: {e}")
             raise
+        
 
     def validate_config(self):
         if not isinstance(self.tap_delay, (int, float)) or self.tap_delay <= 0:
@@ -104,101 +102,67 @@ class TonTonBot:
         except aiohttp.ClientError as e:
             logging.error(f"Proxy {self.proxy} failed with error: {e}")
             self.proxy = None
-            
+
     async def get_bearer_token(self):
         try:
-            encoded_data = self.token
-            decoded_data = urllib.parse.unquote(encoded_data)
-
-            # Parse the decoded string into components
+            decoded_data = urllib.parse.unquote(self.token)
             query_params = urllib.parse.parse_qs(decoded_data)
-
-            # Extract the 'user' field
-            user_data_encoded = query_params['user'][0]
-            user_data_json = urllib.parse.unquote(user_data_encoded)
-            user_data = json.loads(user_data_json)
-
-            # Extract other fields
+            user_data = json.loads(urllib.parse.unquote(query_params['user'][0]))
             auth_date = int(query_params['auth_date'][0])
             hash_value = query_params['hash'][0]
-
-            # Extract relevant fields
-            user_id = user_data['id']
-            first_name = user_data['first_name']
-            username = user_data['username']
-            
 
             data = {
                 "isTaskLogin": False,
                 "source": "TELEGRAM",
                 "isTmaTonAppUser": True,
-                "user": { 
+                "user": {
                     "auth_date": auth_date,
-                    "first_name": first_name,
+                    "first_name": user_data['first_name'],
                     "hash": hash_value,
-                    "id": user_id,
-                    "username": username
+                    "id": user_data['id'],
+                    "username": user_data['username'],
                 },
                 "fingerprintId": None
             }
-            
-            print(data)
 
-            # Make an async HTTP POST request using aiohttp
             async with aiohttp.ClientSession() as session:
                 async with session.post(self.GET_BEARER_URL, json=data) as response:
                     if response.status == 200:
-                        try:
-                            result = await response.json()  # Parse the JSON response
-                            logging.debug(f"Response JSON: {result}")
-                            print(response.headers.get('Authorization'))
-                            return response.headers.get('Authorization')  # Get the token from headers
-                        except aiohttp.ContentTypeError:
-                            logging.error(f"Failed to parse JSON response: {await response.text()}")
+                        result = await response.json()
+                        return response.headers.get('Authorization')
                     else:
                         logging.error(f"Failed to fetch bearer token, status code: {response.status}")
-                        return None
         except Exception as e:
-            logging.error(f"Request failed during fetching bearer token: {e}")
-            return None
+            logging.error(f"Error fetching bearer token: {e}")
+        return None
 
     async def fetch_energy_info(self, session: aiohttp.ClientSession) -> Tuple[Optional[int], Optional[int]]:
         for attempt in range(self.MAX_RETRIES):
             try:
                 async with session.get(self.ENERGY_URL, headers=self.headers, proxy=self.proxy, timeout=10) as response:
                     if response.status == 200:
-                        
                         result = await response.json()
                         return result.get('tapDetails', {}).get('energyLeft'), result.get('totalTxps')
                     logging.error(f"Failed to fetch energy, status code: {response.status}")
                     return None, None
             except (aiohttp.ClientError, asyncio.TimeoutError) as e:
-                logging.error(f"Request failed during fetching energy: {e}")
+                logging.error(f"Error fetching energy info: {e}")
                 if attempt < self.MAX_RETRIES - 1:
-                    logging.warning(f"Retrying... ({attempt + 1}/{self.MAX_RETRIES})")
                     await asyncio.sleep(5)
-                else:
-                    return None, None
-                
+        return None, None
+
     async def fetch_tasks(self, session: aiohttp.ClientSession):
         try:
             async with session.get(self.TASK_ID_URL, headers=self.headers, proxy=self.proxy) as response:
                 if response.status == 200:
                     result = await response.json()
-                    ids = self.extract_ids(result)
+                    ids = [item['id'] for item in result.get('data', []) if not item.get('isStopped', True) and item.get('isMultiplierQuest', False)]
                     logging.info(f"Extracted IDs: {ids}")
                     return ids
                 logging.error(f"Failed to fetch tasks, status code: {response.status}")
-                return None
         except aiohttp.ClientError as e:
-            logging.error(f"Request failed during fetching tasks: {e}")
-            return None
-            
-    def extract_ids(self, data):
-        return [
-            item.get('id') for item in data.get('data', [])
-            if not item.get('isStopped', True) and item.get('isMultiplierQuest', False)
-        ]
+            logging.error(f"Error fetching tasks: {e}")
+        return None
 
     async def tap(self, session: aiohttp.ClientSession):
         payload = {"userTaps": self.tap_amount}
@@ -206,10 +170,9 @@ class TonTonBot:
             async with session.post(self.API_URL, json=payload, headers=self.headers, proxy=self.proxy) as response:
                 if response.status != 200:
                     logging.error(f"Tap failed, status code: {response.status}")
-                    
         except aiohttp.ClientError as e:
-            logging.error(f"Request failed during tap: {e}")
-            
+            logging.error(f"Error during tap: {e}")
+
     async def daily_login(self, session: aiohttp.ClientSession):
         try:
             async with session.get(self.DAILY_LOGIN_URL, headers=self.headers, proxy=self.proxy) as response:
@@ -217,63 +180,54 @@ class TonTonBot:
                     result = await response.json()
                     logging.info(f"Daily login success: {result}")
                 else:
-                    logging.warning(f"Daily login seems to have completed already!")
+                    logging.warning(f"Daily login may already be completed.")
         except aiohttp.ClientError as e:
-            logging.error(f"Request failed during daily login: {e}")
-            
+            logging.error(f"Error during daily login: {e}")
+
     async def schedule_daily_login(self, session: aiohttp.ClientSession, index: int):
         while True:
             logging.info(f"[Account {index}] Performing daily login.")
             await self.daily_login(session)
-            logging.info(f"[Account {index}] Daily login completed, waiting 24 hours for the next login.")
-            await asyncio.sleep(86400)  # Wait for 24 hours
+            logging.info(f"[Account {index}] Waiting 24 hours for next daily login.")
+            await asyncio.sleep(86400)  # 24 hours
 
     async def start_tapping(self, index: int):
         async with aiohttp.ClientSession() as session:
-            self.bearer = await self.get_bearer_token()  # Use await here
+            self.bearer = await self.get_bearer_token()
             self.headers['Authorization'] = f"Bearer {self.bearer}"
-            print(self.headers)
-            logging.warning(f"[Account {index}] Proxy: {self.proxy}")
-            logging.warning(f"[Account {index}] Tapping {self.tap_amount} times every {self.tap_delay:.2f} seconds.")
-            logging.warning(f"[Account {index}] Starting in {self.random_delay:.2f} seconds.")
+            logging.info(f"[Account {index}] Proxy: {self.proxy}")
             await asyncio.sleep(self.random_delay)
+
             asyncio.create_task(self.schedule_daily_login(session, index))
-            
+            await self.tap(session)  # making sure to get latest energy
             while True:
                 current_energy, balance = await self.fetch_energy_info(session)
-                print(current_energy,balance)
                 if current_energy is not None and balance is not None:
                     logging.info(f"[Account {index}] Current energy: {current_energy}, Balance: {balance}")
-                    
                     if current_energy < self.tap_amount + 30:
-                        logging.warning(f"[Account {index}] Energy too low. Sleeping for {self.SLEEP_DURATION_LOW_ENERGY // 60} minutes.")
+                        logging.warning(f"[Account {index}] Low energy, waiting {self.SLEEP_DURATION_LOW_ENERGY} seconds.")
                         await asyncio.sleep(self.SLEEP_DURATION_LOW_ENERGY)
-                        continue 
+                        await self.tap(session)  # making sure to get latest energy
+                        continue
                     
                     await self.tap(session)
+                    logging.info(f"[Account {index}] Sleeping for {self.tap_delay:.2f} seconds.")
                     await asyncio.sleep(self.tap_delay)
-                    current_energy, balance = await self.fetch_energy_info(session)
-                    if current_energy is None:
-                         logging.error(f"[Account {index}] Failed to retrieve updated energy or balance.")
-                        
                 else:
-                    logging.error(f"[Account {index}] Failed to retrieve energy or balance.")
-                    logging.warning(f"[Account {index}] Sleeping for {self.SLEEP_DURATION_RETRY // 60} minutes before retrying.")
+                    logging.warning(f"[Account {index}] Could not retrieve energy information, retrying in {self.SLEEP_DURATION_RETRY} seconds.")
+    
                     await asyncio.sleep(self.SLEEP_DURATION_RETRY)
-
-def print_banner():
-    print(f"{Fore.CYAN}{Style.BRIGHT}")
-    print("#############################################")
-    print("#                                           #")
-    print("#          TonTon Bot by YAN                #")
-    print("#                                           #")
-    print("#############################################")
-    print(f"{Fore.MAGENTA}{Style.BRIGHT}")
-    print("#  Press Ctrl+C to stop the bot safely...   #")
-    print("#############################################\n")
+def load_file_lines(file_path: str) -> Optional[List[str]]:
+    try:
+        with open(file_path, 'r') as file:
+            return [line.strip() for line in file if line.strip()]
+    except FileNotFoundError:
+        logging.error(f"File '{file_path}' not found.")
+    except Exception as e:
+        logging.error(f"Error reading file '{file_path}': {e}")
+    return None
 
 async def main():
-    print_banner()
     config_file = 'config.json'
     tokens_file = 'token.txt'
     proxy_file = 'proxy.txt'
@@ -286,6 +240,7 @@ async def main():
     if proxies is None:
         return
 
+    # Ensure that tokens and proxies match
     tasks = [
         TonTonBot(config_file, token, proxies[index - 1] if index <= len(proxies) else None).start_tapping(index)
         for index, token in enumerate(tokens, start=1)
@@ -293,19 +248,5 @@ async def main():
 
     await asyncio.gather(*tasks)
 
-def load_file_lines(file_path: str) -> Optional[List[str]]:
-    try:
-        with open(file_path, 'r') as file:
-            return [line.strip() for line in file if line.strip()]
-    except FileNotFoundError:
-        logging.error(f"File '{file_path}' not found.")
-    except Exception as e:
-        logging.error(f"Error reading file '{file_path}': {e}")
-    return None
-
 if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        logging.warning("Stopping bot due to user interruption...")
-        sys.exit(0)
+    asyncio.run(main())
