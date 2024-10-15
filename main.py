@@ -7,6 +7,10 @@ import logging
 from colorama import Fore, Style, init
 from typing import Tuple, Optional, List
 
+import urllib
+
+import requests
+
 init(autoreset=True)
 
 # Logging configuration
@@ -34,6 +38,7 @@ class TonTonBot:
     ENERGY_URL = "https://gcpapilb.intract.io/api/qv1/auth/get-super-user"
     TASK_ID_URL = "https://gcpapilb.intract.io/api/qv1/search/results"
     DAILY_LOGIN_URL = "https://gcpapilb.intract.io/api/qv1/auth/gm-streak"
+    GET_BEARER_URL = "https://gcpapilb.intract.io/api/qv1/auth/telegram"
     HEADERS_TEMPLATE = {
         "authority": "gcpapilb.intract.io",
         "accept": "application/json, text/plain, */*",
@@ -65,6 +70,7 @@ class TonTonBot:
         self.validate_config()
         self.headers = self.build_headers()
         self.loop = asyncio.get_event_loop()
+        self.bearer = None
         if self.proxy:
             asyncio.create_task(self.check_proxy())
     def load_config(self, file_path: str) -> dict:
@@ -83,7 +89,6 @@ class TonTonBot:
 
     def build_headers(self) -> dict:
         headers = self.HEADERS_TEMPLATE.copy()
-        headers["authorization"] = f"Bearer {self.token}"
         return headers
 
     async def check_proxy(self):
@@ -99,12 +104,70 @@ class TonTonBot:
         except aiohttp.ClientError as e:
             logging.error(f"Proxy {self.proxy} failed with error: {e}")
             self.proxy = None
+            
+    async def get_bearer_token(self):
+        try:
+            encoded_data = self.token
+            decoded_data = urllib.parse.unquote(encoded_data)
+
+            # Parse the decoded string into components
+            query_params = urllib.parse.parse_qs(decoded_data)
+
+            # Extract the 'user' field
+            user_data_encoded = query_params['user'][0]
+            user_data_json = urllib.parse.unquote(user_data_encoded)
+            user_data = json.loads(user_data_json)
+
+            # Extract other fields
+            auth_date = int(query_params['auth_date'][0])
+            hash_value = query_params['hash'][0]
+
+            # Extract relevant fields
+            user_id = user_data['id']
+            first_name = user_data['first_name']
+            username = user_data['username']
+            
+
+            data = {
+                "isTaskLogin": False,
+                "source": "TELEGRAM",
+                "isTmaTonAppUser": True,
+                "user": { 
+                    "auth_date": auth_date,
+                    "first_name": first_name,
+                    "hash": hash_value,
+                    "id": user_id,
+                    "username": username
+                },
+                "fingerprintId": None
+            }
+            
+            print(data)
+
+            # Make an async HTTP POST request using aiohttp
+            async with aiohttp.ClientSession() as session:
+                async with session.post(self.GET_BEARER_URL, json=data) as response:
+                    if response.status == 200:
+                        try:
+                            result = await response.json()  # Parse the JSON response
+                            logging.debug(f"Response JSON: {result}")
+                            print(response.headers.get('Authorization'))
+                            return response.headers.get('Authorization')  # Get the token from headers
+                        except aiohttp.ContentTypeError:
+                            logging.error(f"Failed to parse JSON response: {await response.text()}")
+                    else:
+                        logging.error(f"Failed to fetch bearer token, status code: {response.status}")
+                        return None
+        except Exception as e:
+            logging.error(f"Request failed during fetching bearer token: {e}")
+            return None
 
     async def fetch_energy_info(self, session: aiohttp.ClientSession) -> Tuple[Optional[int], Optional[int]]:
         for attempt in range(self.MAX_RETRIES):
             try:
                 async with session.get(self.ENERGY_URL, headers=self.headers, proxy=self.proxy, timeout=10) as response:
                     if response.status == 200:
+                        
                         result = await response.json()
                         return result.get('tapDetails', {}).get('energyLeft'), result.get('totalTxps')
                     logging.error(f"Failed to fetch energy, status code: {response.status}")
@@ -167,6 +230,9 @@ class TonTonBot:
 
     async def start_tapping(self, index: int):
         async with aiohttp.ClientSession() as session:
+            self.bearer = await self.get_bearer_token()  # Use await here
+            self.headers['Authorization'] = f"Bearer {self.bearer}"
+            print(self.headers)
             logging.warning(f"[Account {index}] Proxy: {self.proxy}")
             logging.warning(f"[Account {index}] Tapping {self.tap_amount} times every {self.tap_delay:.2f} seconds.")
             logging.warning(f"[Account {index}] Starting in {self.random_delay:.2f} seconds.")
@@ -175,6 +241,7 @@ class TonTonBot:
             
             while True:
                 current_energy, balance = await self.fetch_energy_info(session)
+                print(current_energy,balance)
                 if current_energy is not None and balance is not None:
                     logging.info(f"[Account {index}] Current energy: {current_energy}, Balance: {balance}")
                     
